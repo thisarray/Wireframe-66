@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>exitebike</title>
+  <script src="../../jsgame0.js"></script>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+.hidden {
+  display: none;
+}
+#original {
+  margin-left: 1em;
+}
+  </style>
+</head>
+
+<body>
+<section id="imageLoader" class="hidden">
+  <img class="hidden" src="images/background.png" alt="background" data-name="background">
+  <img class="hidden" src="images/bike0.png" alt="bike0" data-name="bike0">
+  <img class="hidden" src="images/bike1.png" alt="bike1" data-name="bike1">
+  <img class="hidden" src="images/crowd1.png" alt="crowd1" data-name="crowd1">
+  <img class="hidden" src="images/jump1.png" alt="jump1" data-name="jump1">
+  <img class="hidden" src="images/muck1.png" alt="muck1" data-name="muck1">
+  <img class="hidden" src="images/rock1.png" alt="rock1" data-name="rock1">
+  <img class="hidden" src="images/track1.png" alt="track1" data-name="track1">
+  <img class="hidden" src="images/track2.png" alt="track2" data-name="track2">
+</section>
+
+<main>
+<h1>exitebike</h1>
+
+<canvas id="screen">
+The game screen appears here if your browser supports the Canvas API.
+</canvas>
+<section id="controls">
+  <button type="button" id="reset">Reset</button>
+  <button type="button" id="pause">Pause</button>
+</section>
+
+<h2>Attribution</h2>
+
+<p><a href="https://wireframe.raspberrypi.com/issues/66">Code an homage to Excitebike, pages 64-65, by Mark Vanstone</a>.</p>
+
+<p>Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode">Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported</a>.</p>
+
+<p><a href="https://www.raspberrypi.com/news/code-an-homage-to-excitebike-wireframe-66/">Blog post of Source Code</a>.</p>
+
+<h2>Original Python code</h2>
+
+<pre id="original"><code>
+# Excitebike
+import pgzrun, time
+
+startTime = time.time()
+bike = Actor(&#x27;bike0&#x27;,center=(150,350), anchor=(&#x27;center&#x27;,&#x27;bottom&#x27;))
+bike.speed = 1
+bike.frame = bike.direction = 0
+bike.laneY = 375
+score = trackPos = gametime = lastLap = 0
+track = [0,2,0,0,0,0,0,0,1,0,0,0,1,1,0,1,0,0,0,
+         0,0,0,1,0,0,1,0,0,0,1,1,0,0,0,1,1,1,0,
+         0,0,1,0,0,0,0,1,0,0,0,2,0,0,0,0,0,0,0]
+muck = [0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,2,1,
+         0,0,4,0,1,0,0,0,0,2,0,0,0,3,0,0,0,0,0,
+         3,0,0,0,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+def draw():
+    screen.blit(&quot;background&quot;, (0, 0))
+    drawTrack()
+    bike.draw()
+    screen.draw.text(&quot;LAP TIME: &quot;+str(int(time.time() - startTime)), (20, 555),color=(255,255,255) , fontsize=50)
+    screen.draw.text(&quot;LAST LAP: &quot;+str(lastLap), topright = (780, 555),color=(255,255,255) , fontsize=50)
+
+def update():
+    global trackPos, gametime, startTime, lastLap
+    if keyboard.right and bike.y == bike.laneY: bike.speed = limit(bike.speed+0.1, 1, 5)
+    if keyboard.left and bike.y == bike.laneY: bike.speed = limit(bike.speed-0.1, 1, 5)
+    trackPos -= bike.speed
+    if(trackPos &lt; -4800):
+        trackPos = 0
+        lastLap = int(time.time() - startTime)
+        startTime = time.time()
+    if round(bike.y/2) == round(bike.laneY/2):
+        bike.y = bike.laneY
+        bike.angle = 0
+    if bike.direction != 0:
+        if bike.y &lt;= 375 or bike.y &gt;= 525 or bike.y == bike.laneY:
+            bike.direction = 0
+        else: bike.y += bike.direction*2
+    if(gametime%(int(8-bike.speed)) == 0): bike.frame = 1 - bike.frame
+    a = bike.angle
+    bike.image = &quot;bike&quot; + str(bike.frame)
+    bike.angle = a
+    checkBikeRamp()
+
+def on_key_down(key):
+    if key.name == &quot;UP&quot;:
+        bike.direction = -1
+        bike.laneY = limit(bike.laneY-50, 375, 525)
+    if key.name == &quot;DOWN&quot;:
+        bike.direction = 1
+        bike.laneY = limit(bike.laneY+50, 375, 525)
+    bike.y += bike.direction
+
+def drawTrack():
+    trackOffset = trackPos%100
+    trackBlock = int(-trackPos/100)
+    if trackOffset == 0: trackBlock -= 1
+    for t in range(0, 9):
+        screen.blit(&quot;crowd1&quot;, ((t*100)+trackOffset-100, 0))
+        screen.blit(&quot;rock1&quot;, ((t*100)+trackOffset-100, 270))
+        screen.blit(&quot;rock1&quot;, ((t*100)+trackOffset-50, 270))
+        if track[trackBlock+t] == 0: screen.blit(&quot;track1&quot;, ((t*100)+trackOffset-100, 300))
+        if track[trackBlock+t] == 1: screen.blit(&quot;jump1&quot;, ((t*100)+trackOffset-100, 300))
+        if track[trackBlock+t] == 2: screen.blit(&quot;track2&quot;, ((t*100)+trackOffset-100, 300))
+        if muck[trackBlock+t] &gt; 0: screen.blit(&quot;muck1&quot;, ((t*100)+trackOffset-100, 295+(muck[trackBlock+t])*50))
+
+def checkBikeRamp():
+    tp = trackPos + 25
+    trackOffset = tp%100
+    trackBlock = int((-tp)/100)+2
+    trackheight = 0
+    if trackOffset == 0: trackBlock -= 1
+    if track[trackBlock] == 1:
+        trackheight = (100-trackOffset)
+        if bike.y &gt;= bike.laneY-trackheight:
+            bike.y = bike.laneY-trackheight
+            if bike.angle &lt; 45: bike.angle += bike.speed
+        if bike.angle &lt; -25:
+            bike.speed = 1
+            bike.angle = 0
+        if bike.angle &gt;= -25 and bike.angle &lt; 0: bike.angle = 0
+    else:
+        if int(bike.y) == int(bike.laneY) and bike.angle &lt; -25:
+            bike.angle = 0
+            bike.speed = 1
+    if bike.y &lt; bike.laneY-trackheight and bike.direction != 1:
+        bike.y += (2-(bike.speed/3))
+        if bike.direction == 0: bike.angle -= 1
+        if bike.speed &gt; 1: bike.speed -= 0.02
+    muckLane = int((bike.laneY-375)/50)+1
+    if muck[trackBlock] == muckLane and int(bike.y) == int(bike.laneY) : bike.speed = bike.speed/1.1
+
+def limit(n, minn, maxn):
+    return max(min(maxn, n), minn)
+
+pgzrun.go()
+</code></pre>
+</main>
+
+<script>
+// Excitebike
+
+const TRACK = [0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0,
+               0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0,
+               0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0];
+
+const MUCK = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 1,
+              0, 0, 4, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0,
+              3, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+const SCORE = 0;
+
+const GAMETIME = 0;
+
+/*
+ * Return the result of the modulo operation dividend modulo divisor.
+ *
+ * The remainder operator (%) in JavaScript always takes the sign of the dividend.
+ * This trips you up when you come from Python and expect it to be a
+ * modulo operator for a negative dividend.
+ * This function correctly returns the non-negative remainder like Python.
+ */
+function modulo(dividend, divisor) {
+  return (((dividend % divisor) + divisor) % divisor);
+}
+
+/*
+ * Return the number of seconds elapsed since the epoch January 1, 1970 00:00:00 UTC, with leap seconds ignored.
+ */
+function time() {
+  // Date.now() returns milliseconds
+  return Math.floor(Date.now() / 1000);
+}
+
+var startTime, bike, trackPos, lastLap;
+
+function reset() {
+  startTime = time();
+  bike = new Actor('bike0');
+  bike.anchor = ['center', 'bottom'];
+  bike.center = [150, 350];
+  bike.speed = 1;
+  bike.frame = 0;
+  bike.direction = 0;
+  bike.laneY = 375;
+  trackPos = 0;
+  lastLap = 0;
+}
+
+function draw() {
+  screen.blit("background", [0, 0]);
+  drawTrack();
+  bike.draw();
+  screen.draw.text(`LAP TIME: ${ Math.trunc(time() - startTime) }`, {
+    pos: [20, 555],
+    color: [255, 255, 255],
+    fontsize: 50
+  });
+  screen.draw.text("LAST LAP: " + lastLap.toFixed(0), {
+    topright: [780, 555],
+    color: [255, 255, 255],
+    fontsize: 50
+  });
+}
+
+function update() {
+  if (keyboard[keys.RIGHT] && (bike.posy === bike.laneY)) {
+    bike.speed = limit(bike.speed + 0.1, 1, 5);
+  }
+  if (keyboard[keys.LEFT] && (bike.posy === bike.laneY)) {
+    bike.speed = limit(bike.speed - 0.1, 1, 5);
+  }
+  trackPos -= bike.speed;
+  if (trackPos < -4800) {
+    trackPos = 0;
+    lastLap = Math.trunc(time() - startTime);
+    startTime = time();
+  }
+  if (Math.round(bike.posy / 2) === Math.round(bike.laneY / 2)) {
+    bike.posy = bike.laneY;
+    bike.angle = 0;
+  }
+  if (bike.direction !== 0) {
+    if ((bike.posy <= 375) || (bike.posy >= 525) || (bike.posy === bike.laneY)) {
+      bike.direction = 0;
+    }
+    else {
+      bike.posy += bike.direction * 2;
+    }
+  }
+  if (modulo(GAMETIME, Math.trunc(8 - bike.speed)) === 0) {
+    bike.frame = 1 - bike.frame;
+  }
+  bike.name = "bike" + bike.frame;
+  checkBikeRamp();
+}
+
+function on_key_down(key) {
+  if (key === keys.UP) {
+    bike.direction = -1;
+    bike.laneY = limit(bike.laneY - 50, 375, 525);
+  }
+  if (key === keys.DOWN) {
+    bike.direction = 1;
+    bike.laneY = limit(bike.laneY + 50, 375, 525);
+  }
+  bike.posy += bike.direction;
+}
+
+function drawTrack() {
+  let trackOffset = modulo(trackPos, 100),
+      trackBlock = Math.trunc(-trackPos / 100);
+  if (trackOffset === 0) {
+    trackBlock -= 1;
+  }
+  for (let t = 0; t < 9; t++) {
+    screen.blit("crowd1", [(t * 100) + trackOffset - 100, 0]);
+    screen.blit("rock1", [(t * 100) + trackOffset - 100, 270]);
+    screen.blit("rock1", [(t * 100) + trackOffset - 50, 270]);
+    if (TRACK[trackBlock+t] === 0) {
+      screen.blit("track1", [(t * 100) + trackOffset - 100, 300]);
+    }
+    if (TRACK[trackBlock+t] === 1) {
+      screen.blit("jump1", [(t * 100) + trackOffset - 100, 300]);
+    }
+    if (TRACK[trackBlock+t] === 2) {
+      screen.blit("track2", [(t * 100) + trackOffset - 100, 300]);
+    }
+    if (MUCK[trackBlock+t] > 0) {
+      screen.blit("muck1", [(t * 100) + trackOffset - 100, 295 + (MUCK[trackBlock+t] * 50)]);
+    }
+  }
+}
+
+function checkBikeRamp() {
+  let tp = trackPos + 25,
+      trackOffset = modulo(tp, 100),
+      trackBlock = Math.trunc(-tp / 100) + 2,
+      trackheight = 0,
+      muckLane = Math.trunc((bike.laneY - 375) / 50) + 1;
+  if (trackOffset === 0) {
+    trackBlock -= 1;
+  }
+  if (TRACK[trackBlock] === 1) {
+    trackheight = 100 - trackOffset;
+    if (bike.posy >= (bike.laneY - trackheight)) {
+      bike.posy = bike.laneY - trackheight;
+      if (bike.angle < 45) {
+        bike.angle += bike.speed;
+      }
+    }
+    if (bike.angle < -25) {
+      bike.speed = 1;
+      bike.angle = 0;
+    }
+    if ((bike.angle >= -25) && (bike.angle < 0)) {
+      bike.angle = 0;
+    }
+  }
+  else {
+    if ((Math.trunc(bike.posy) === Math.trunc(bike.laneY)) && (bike.angle < -25)) {
+      bike.angle = 0;
+      bike.speed = 1;
+    }
+  }
+  if ((bike.posy < (bike.laneY - trackheight)) && (bike.direction !== 1)) {
+    bike.posy += 2 - (bike.speed / 3);
+    if (bike.direction === 0) {
+      bike.angle -= 1;
+    }
+    if (bike.speed > 1) {
+      bike.speed -= 0.02;
+    }
+  }
+  if ((MUCK[trackBlock] === muckLane) && (Math.trunc(bike.posy) === Math.trunc(bike.laneY))) {
+    bike.speed = bike.speed / 1.1;
+  }
+}
+
+function limit(n, minn, maxn) {
+  return Math.max(Math.min(maxn, n), minn);
+}
+
+window.addEventListener('load', (event) => {
+  screen.init();
+});
+</script>
+</body>
+
+</html>
