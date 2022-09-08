@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>exitebike</title>
+  <script src="../../jsgame0.js"></script>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+.hidden {
+  display: none;
+}
+#original {
+  margin-left: 1em;
+}
+  </style>
+</head>
+
+<body>
+<section id="imageLoader" class="hidden">
+  <img class="hidden" src="images/background.png" alt="background" data-name="background">
+  <img class="hidden" src="images/bike0.png" alt="bike0" data-name="bike0">
+  <img class="hidden" src="images/bike1.png" alt="bike1" data-name="bike1">
+  <img class="hidden" src="images/crowd1.png" alt="crowd1" data-name="crowd1">
+  <img class="hidden" src="images/jump1.png" alt="jump1" data-name="jump1">
+  <img class="hidden" src="images/muck1.png" alt="muck1" data-name="muck1">
+  <img class="hidden" src="images/rock1.png" alt="rock1" data-name="rock1">
+  <img class="hidden" src="images/track1.png" alt="track1" data-name="track1">
+  <img class="hidden" src="images/track2.png" alt="track2" data-name="track2">
+</section>
+
+<main>
+<h1>exitebike</h1>
+
+<canvas id="screen">
+The game screen appears here if your browser supports the Canvas API.
+</canvas>
+<section id="controls">
+  <button type="button" id="reset">Reset</button>
+  <button type="button" id="pause">Pause</button>
+</section>
+
+<p>A version with a procedurally generated track.</p>
+
+<h2>Attribution</h2>
+
+<p><a href="https://wireframe.raspberrypi.com/issues/66">Code an homage to Excitebike, pages 64-65, by Mark Vanstone</a>.</p>
+
+<p>Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode">Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported</a>.</p>
+
+<p><a href="https://www.raspberrypi.com/news/code-an-homage-to-excitebike-wireframe-66/">Blog post of Source Code</a>.</p>
+
+</main>
+
+<script>
+// Excitebike
+
+const GAMETIME = 0;
+
+/*
+ * Return the result of the modulo operation dividend modulo divisor.
+ *
+ * The remainder operator (%) in JavaScript always takes the sign of the dividend.
+ * This trips you up when you come from Python and expect it to be a
+ * modulo operator for a negative dividend.
+ * This function correctly returns the non-negative remainder like Python.
+ */
+function modulo(dividend, divisor) {
+  return (((dividend % divisor) + divisor) % divisor);
+}
+
+/*
+ * Return a random integer N such that min <= N < max.
+ */
+function getRandomInteger(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor((Math.random() * (max - min)) + min);
+}
+
+var elapsed, track, muck, bike, trackPos, lastLap;
+
+function generateTrack() {
+  let length = getRandomInteger(40, 80),
+      roll;
+  track = (new Array(length)).fill(0);
+  muck = (new Array(length)).fill(0);
+
+  // Flat track with finish line at start and end to create illusion of a looping track
+  track[1] = 2;
+  track[length-8] = 2;
+
+  // Keep the first and last 8 blocks of the track clear
+  for (let i = 8; i < (length - 8); i++) {
+    roll = getRandomInteger(0, 100);
+    if (roll < 26) {
+      // 26% chance of a ramp
+      track[i] = 1;
+    }
+    else {
+      // Only place muck on non-ramp parts of the track
+      roll = getRandomInteger(0, 100);
+      if (roll < 6) {
+        muck[i] = 1;
+      }
+      else if (roll < 12) {
+        muck[i] = 2;
+      }
+      else if (roll < 18) {
+        muck[i] = 3;
+      }
+      else if (roll < 20) {
+        muck[i] = 4;
+      }
+    }
+  }
+}
+
+function reset() {
+  elapsed = 0;
+  bike = new Actor('bike0');
+  bike.anchor = ['center', 'bottom'];
+  bike.center = [150, 350];
+  bike.speed = 1;
+  bike.frame = 0;
+  bike.direction = 0;
+  bike.laneY = 375;
+  trackPos = 0;
+  lastLap = 0;
+
+  generateTrack();
+}
+
+function draw() {
+  screen.blit("background", [0, 0]);
+  drawTrack();
+  bike.draw();
+  screen.draw.text(`LAP TIME: ${ Math.trunc(elapsed) }`, {
+    pos: [20, 555],
+    color: [255, 255, 255],
+    fontsize: 50
+  });
+  screen.draw.text("LAST LAP: " + lastLap.toFixed(0), {
+    topright: [780, 555],
+    color: [255, 255, 255],
+    fontsize: 50
+  });
+}
+
+function update(dt) {
+  elapsed += dt;
+
+  if (keyboard[keys.RIGHT] && (bike.posy === bike.laneY)) {
+    bike.speed = limit(bike.speed + 0.1, 1, 5);
+  }
+  if (keyboard[keys.LEFT] && (bike.posy === bike.laneY)) {
+    bike.speed = limit(bike.speed - 0.1, 1, 5);
+  }
+  trackPos -= bike.speed;
+  if (trackPos < -((track.length * 100) - 900)) {
+    trackPos = 0;
+    lastLap = Math.trunc(elapsed);
+    elapsed = 0;
+  }
+  if (Math.round(bike.posy / 2) === Math.round(bike.laneY / 2)) {
+    bike.posy = bike.laneY;
+    bike.angle = 0;
+  }
+  if (bike.direction !== 0) {
+    if ((bike.posy <= 375) || (bike.posy >= 525) || (bike.posy === bike.laneY)) {
+      bike.direction = 0;
+    }
+    else {
+      bike.posy += bike.direction * 2;
+    }
+  }
+  if (modulo(GAMETIME, Math.trunc(8 - bike.speed)) === 0) {
+    bike.frame = 1 - bike.frame;
+  }
+  bike.name = "bike" + bike.frame;
+  checkBikeRamp();
+}
+
+function on_key_down(key) {
+  if (key === keys.UP) {
+    bike.direction = -1;
+    bike.laneY = limit(bike.laneY - 50, 375, 525);
+  }
+  if (key === keys.DOWN) {
+    bike.direction = 1;
+    bike.laneY = limit(bike.laneY + 50, 375, 525);
+  }
+  bike.posy += bike.direction;
+}
+
+function drawTrack() {
+  let trackOffset = modulo(trackPos, 100),
+      trackBlock = Math.trunc(-trackPos / 100);
+  if (trackOffset === 0) {
+    trackBlock -= 1;
+  }
+  for (let t = 0; t < 9; t++) {
+    screen.blit("crowd1", [(t * 100) + trackOffset - 100, 0]);
+    screen.blit("rock1", [(t * 100) + trackOffset - 100, 270]);
+    screen.blit("rock1", [(t * 100) + trackOffset - 50, 270]);
+    if (track[trackBlock+t] === 0) {
+      screen.blit("track1", [(t * 100) + trackOffset - 100, 300]);
+    }
+    if (track[trackBlock+t] === 1) {
+      screen.blit("jump1", [(t * 100) + trackOffset - 100, 300]);
+    }
+    if (track[trackBlock+t] === 2) {
+      screen.blit("track2", [(t * 100) + trackOffset - 100, 300]);
+    }
+    if (muck[trackBlock+t] > 0) {
+      screen.blit("muck1", [(t * 100) + trackOffset - 100, 295 + (muck[trackBlock+t] * 50)]);
+    }
+  }
+}
+
+function checkBikeRamp() {
+  let tp = trackPos + 25,
+      trackOffset = modulo(tp, 100),
+      trackBlock = Math.trunc(-tp / 100) + 2,
+      trackheight = 0,
+      muckLane = Math.trunc((bike.laneY - 375) / 50) + 1;
+  if (trackOffset === 0) {
+    trackBlock -= 1;
+  }
+  if (track[trackBlock] === 1) {
+    trackheight = 100 - trackOffset;
+    if (bike.posy >= (bike.laneY - trackheight)) {
+      bike.posy = bike.laneY - trackheight;
+      if (bike.angle < 45) {
+        bike.angle += bike.speed;
+      }
+    }
+    if (bike.angle < -25) {
+      bike.speed = 1;
+      bike.angle = 0;
+    }
+    if ((bike.angle >= -25) && (bike.angle < 0)) {
+      bike.angle = 0;
+    }
+  }
+  else {
+    if ((Math.trunc(bike.posy) === Math.trunc(bike.laneY)) && (bike.angle < -25)) {
+      bike.angle = 0;
+      bike.speed = 1;
+    }
+  }
+  if ((bike.posy < (bike.laneY - trackheight)) && (bike.direction !== 1)) {
+    bike.posy += 2 - (bike.speed / 3);
+    if (bike.direction === 0) {
+      bike.angle -= 1;
+    }
+    if (bike.speed > 1) {
+      bike.speed -= 0.02;
+    }
+  }
+  if ((muck[trackBlock] === muckLane) && (Math.trunc(bike.posy) === Math.trunc(bike.laneY))) {
+    bike.speed = bike.speed / 1.1;
+  }
+}
+
+function limit(n, minn, maxn) {
+  return Math.max(Math.min(maxn, n), minn);
+}
+
+window.addEventListener('load', (event) => {
+  screen.init();
+});
+</script>
+</body>
+
+</html>
