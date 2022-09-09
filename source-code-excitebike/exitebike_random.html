@@ -94,8 +94,8 @@ function generateTrack() {
   track[1] = 2;
   track[length-8] = 2;
 
-  // Keep the first and last 8 blocks of the track clear
-  for (let i = 8; i < (length - 8); i++) {
+  // Keep the first 8 and last 9 blocks of the track clear
+  for (let i = 8; i < (length - 9); i++) {
     roll = getRandomInteger(0, 100);
     if (roll < 26) {
       // 26% chance of a ramp
